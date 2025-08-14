@@ -3,30 +3,27 @@ package main
 import (
 	"context"
 	"fmt"
-	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
-var ctx, cancel = context.WithCancel(context.Background())
+var ctx = context.Background()
 
-func worker(id int) {
-	if id == 5 {
-		fmt.Println("Cancelled!")
-		cancel()
+func redisOptions(addr string, pass string, db int) *redis.Options {
+	return &redis.Options{
+		Addr:     addr,
+		Password: pass,
+		DB:       db,
 	}
-
-	fmt.Println("id: ", id)
 }
 
 func main() {
-	defer cancel()
-	for id := 1; id < 15; id++ {
-		go worker(id)
+	rdb := redis.NewClient(redisOptions("localhost:6379", "", 0))
+
+	pong, err := rdb.Ping(ctx).Result()
+	if err != nil {
+		fmt.Println("Error: ", err)
 	}
 
-	select {
-	case <-ctx.Done():
-		fmt.Println("ctx done: ", ctx.Err())
-	case <-time.After(time.Second * 15):
-		fmt.Println("All work done!")
-	}
+	fmt.Println("PONG: ", pong)
 }
