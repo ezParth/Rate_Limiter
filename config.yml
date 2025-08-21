@@ -4,13 +4,13 @@ server:
 
   upstream:
     - id: node1
-      server: localhost:8001
+      server: https://jsonplaceholder.typicode.com/todos/1
 
     - id: node2
-      server: localhost:8002
+      server: https://jsonplaceholder.typicode.com/todos/2
 
     - id: node3
-      server: localhost:8003
+      server: https://jsonplaceholder.typicode.com/todos/1
 
   rules:
     - path: /
@@ -18,6 +18,6 @@ server:
         - node1
         - node3
 
-    - path: /get
+    - path: /todo
       upstream: 
         - node2
