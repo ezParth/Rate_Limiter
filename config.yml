@@ -9,10 +9,14 @@ server:
     - id: node2
       server: localhost:8002
 
+    - id: node3
+      server: localhost:8003
+
   rules:
     - path: /
       upstream: 
         - node1
+        - node3
 
     - path: /get
       upstream: 

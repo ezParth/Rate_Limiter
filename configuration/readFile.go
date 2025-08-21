@@ -1,7 +1,6 @@
 package configuration
 
 import (
-	"fmt"
 	"os"
 
 	"gopkg.in/yaml.v2"
@@ -20,6 +19,5 @@ func LoadYAML(path string) (*YAMLCONFIG, error) {
 		return nil, err
 	}
 
-	fmt.Printf("%v", yamlFile)
 	return &yamlFile, nil
 }
