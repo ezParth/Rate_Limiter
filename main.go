@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	auth "rl/authentication"
 	proxy "rl/reverseProxy"
 	"syscall"
 	"time"
@@ -14,6 +15,7 @@ import (
 func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", proxy.Start)
+	mux.HandleFunc("/auth", auth.IsAuthenticated(proxy.Start))
 
 	server := http.Server{
 		Addr:    ":8080",
