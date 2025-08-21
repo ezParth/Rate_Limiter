@@ -10,6 +10,7 @@ import (
 type Order struct {
 	ID     int
 	Status string
+	// mu     sync.Mutex
 }
 
 var status = []string{"Pending", "Shipped", "Delivered"}
@@ -21,42 +22,39 @@ func main() {
 
 	wg.Add(3)
 
-	go func() {
-		defer wg.Done()
-		processOrders(orders)
-	}()
+	// go func() {
+	// 	defer wg.Done()
+	// 	processOrders(orders)
+	// }()
 
-	go func() {
-		defer wg.Done()
-		updateOrders(orders)
-	}()
-
-	go func() {
-		defer wg.Done()
-		reportOrderStatus(orders)
-	}()
+	for range 3 {
+		go func() {
+			defer wg.Done()
+			for _, order := range orders {
+				updateOrders(order)
+			}
+		}()
+	}
 
 	wg.Wait()
+
+	reportOrderStatus(orders)
+
 	fmt.Println("All orders completed, Exiting!")
 }
 
-func updateOrders(orders []*Order) {
-	for _, order := range orders {
-		time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
+func updateOrders(order *Order) {
+	time.Sleep(time.Duration(rand.Intn(500)) * time.Millisecond)
 
-		order.Status = status[rand.Intn(3)]
-		fmt.Printf("Updated Orders %d, status %s \n", order.ID, order.Status)
-	}
+	order.Status = status[rand.Intn(3)]
+	fmt.Printf("Updated Orders %d, status %s \n", order.ID, order.Status)
 }
 
 func reportOrderStatus(orders []*Order) {
-	for i := 0; i < 5; i++ {
-		time.Sleep(1000 * time.Millisecond)
-		fmt.Println("\n --- Orders Status Report --- ")
+	fmt.Println("\n --- Orders Status Report --- ")
 
-		for _, order := range orders {
-			fmt.Printf("Order %d: %s\n", order.ID, order.Status)
-		}
+	for _, order := range orders {
+		fmt.Printf("Order %d: %s\n", order.ID, order.Status)
 	}
 
 	fmt.Print("-------------------------------\n")
