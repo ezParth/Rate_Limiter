@@ -36,6 +36,7 @@ func main() {
 		reportOrderStatus(orders)
 	}()
 
+	wg.Wait()
 	fmt.Println("All orders completed, Exiting!")
 }
 
