@@ -40,11 +40,13 @@ func IsAuthenticated(rdb *redis.Client, next http.HandlerFunc) http.HandlerFunc 
 
 		if strings.TrimSpace(bodyHeader) == "" {
 			http.Error(w, "Invalid Username", http.StatusBadRequest)
+			return
 		}
 
 		err := rateLimiter.RateLimiter(bodyHeader, rdb)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("%s", err), http.StatusBadRequest)
+			return
 		}
 
 		fmt.Println("Authorized")

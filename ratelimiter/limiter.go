@@ -3,7 +3,7 @@ package ratelimiter
 import (
 	"context"
 	"fmt"
-	helper "rl/helper"
+	"rl/helper"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -20,54 +20,57 @@ func CreateClient() *redis.Client {
 		Password: "",
 		DB:       0,
 	})
-
 	return client
 }
 
+// RateLimiter implements a token bucket limiter with Redis
 func RateLimiter(username string, rdb *redis.Client) error {
 	fmt.Println("Hitting RateLimiter")
-	timeUsername := fmt.Sprintf("%s:time", username)
 	ctx := context.Background()
-	count, err := rdb.Incr(ctx, username).Result()
-	if err != nil {
-		panic(err)
+
+	tokenKey := fmt.Sprintf("%s:tokens", username)
+	timeKey := fmt.Sprintf("%s:lastRefill", username)
+
+	// Get current tokens
+	tokenStr, err := rdb.Get(ctx, tokenKey).Result()
+	tokens := maxLimit
+	if err == nil {
+		fmt.Sscanf(tokenStr, "%d", &tokens)
 	}
 
-	remainingToken := maxLimit - helper.Max(5, int(count))
-
-	currTime := time.Now()
-	if count == 1 {
-		value, err := rdb.Set(ctx, timeUsername, currTime, time.Duration(1000*time.Second)).Result()
-		fmt.Println("value ", value)
-		return err
+	// Get last refill time
+	lastRefillStr, err := rdb.Get(ctx, timeKey).Result()
+	lastRefill := time.Now()
+	if err == nil {
+		parsed, perr := time.Parse(time.RFC3339Nano, lastRefillStr)
+		if perr == nil {
+			lastRefill = parsed
+		}
 	}
 
-	timeStr, err := rdb.Get(ctx, timeUsername).Result()
-	if err != nil {
-		return err
+	// Calculate how many tokens to add since last refill
+	now := time.Now()
+	diff := now.Sub(lastRefill).Seconds()
+	addedTokens := int(diff) / renewTime
+
+	if addedTokens > 0 {
+		tokens = helper.Min(maxLimit, tokens+addedTokens)
+		lastRefill = now
 	}
 
-	savedTime, err := time.Parse(time.RFC3339Nano, timeStr)
-	if err != nil {
-		return err
+	fmt.Println("Available tokens before request:", tokens)
+
+	if tokens <= 0 {
+		return fmt.Errorf("rate Limit Exceeded")
 	}
 
-	diff := currTime.Sub(savedTime)
-	fmt.Println("diff: ", diff)
-	seconds := diff.Seconds()
-	fmt.Println("seconds: ", seconds)
-	extraToken := 0
-	if seconds > 59 {
-		extraToken = helper.Min(maxLimit, int(seconds)/renewTime)
-	}
+	// Consume one token
+	tokens--
 
-	remainingToken += extraToken
+	// Save updated values back to Redis
+	rdb.Set(ctx, tokenKey, tokens, 1000*time.Second)
+	rdb.Set(ctx, timeKey, lastRefill.Format(time.RFC3339Nano), 1000*time.Second)
 
-	fmt.Println("remaining token", remainingToken)
-	if remainingToken > 0 {
-		rdb.Set(ctx, username, remainingToken, 1000*time.Second)
-		return nil
-	}
-
-	return fmt.Errorf("rate Limit Exceeded")
+	fmt.Println("Remaining tokens:", tokens)
+	return nil
 }
