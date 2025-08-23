@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"rl/helper"
+	"sync"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -23,23 +24,23 @@ func CreateClient() *redis.Client {
 	return client
 }
 
-// RateLimiter implements a token bucket limiter with Redis
-func RateLimiter(username string, rdb *redis.Client) error {
-	fmt.Println("Hitting RateLimiter")
+func RateLimiter(username string, rdb *redis.Client, mutexClinet *sync.Mutex) error {
 	ctx := context.Background()
 
 	tokenKey := fmt.Sprintf("%s:tokens", username)
 	timeKey := fmt.Sprintf("%s:lastRefill", username)
 
-	// Get current tokens
+	mutexClinet.Lock()
 	tokenStr, err := rdb.Get(ctx, tokenKey).Result()
+	mutexClinet.Unlock()
 	tokens := maxLimit
 	if err == nil {
 		fmt.Sscanf(tokenStr, "%d", &tokens)
 	}
 
-	// Get last refill time
+	mutexClinet.Lock()
 	lastRefillStr, err := rdb.Get(ctx, timeKey).Result()
+	mutexClinet.Unlock()
 	lastRefill := time.Now()
 	if err == nil {
 		parsed, perr := time.Parse(time.RFC3339Nano, lastRefillStr)
@@ -48,7 +49,6 @@ func RateLimiter(username string, rdb *redis.Client) error {
 		}
 	}
 
-	// Calculate how many tokens to add since last refill
 	now := time.Now()
 	diff := now.Sub(lastRefill).Seconds()
 	addedTokens := int(diff) / renewTime
@@ -58,18 +58,18 @@ func RateLimiter(username string, rdb *redis.Client) error {
 		lastRefill = now
 	}
 
-	fmt.Println("Available tokens before request:", tokens)
+	// fmt.Println("Available tokens before request:", tokens)
 
 	if tokens <= 0 {
 		return fmt.Errorf("rate Limit Exceeded")
 	}
 
-	// Consume one token
 	tokens--
 
-	// Save updated values back to Redis
+	mutexClinet.Lock()
 	rdb.Set(ctx, tokenKey, tokens, 1000*time.Second)
 	rdb.Set(ctx, timeKey, lastRefill.Format(time.RFC3339Nano), 1000*time.Second)
+	mutexClinet.Unlock()
 
 	fmt.Println("Remaining tokens:", tokens)
 	return nil

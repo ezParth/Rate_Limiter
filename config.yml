@@ -12,6 +12,9 @@ server:
     - id: node3
       server: https://jsonplaceholder.typicode.com/todos/1
 
+    - id: node4
+      server: https://jsonplaceholder.typicode.com/todos/5
+
   rules:
     - path: /
       upstream: 
@@ -21,3 +24,7 @@ server:
     - path: /todo
       upstream: 
         - node2
+
+    - path: /auth
+      upstream:
+        - node4

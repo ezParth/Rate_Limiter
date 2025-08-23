@@ -5,6 +5,7 @@ import (
 	"net/http"
 	rateLimiter "rl/ratelimiter"
 	"strings"
+	"sync"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -13,11 +14,11 @@ import (
 
 var demo_token = "YOUR_TOKEN_HERE"
 
-func IsAuthenticated(rdb *redis.Client, next http.HandlerFunc) http.HandlerFunc {
+func IsAuthenticated(mutexClinet *sync.Mutex, rdb *redis.Client, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("hitting auth")
+		// fmt.Println("hitting auth")
 		authHeader := r.Header.Get("Authorization")
-		fmt.Println("auth header", authHeader, " url: ", r.URL)
+		// fmt.Println("auth header", authHeader, " url: ", r.URL)
 
 		if authHeader == "" {
 			http.Error(w, "Authorization header missing", http.StatusUnauthorized)
@@ -36,20 +37,21 @@ func IsAuthenticated(rdb *redis.Client, next http.HandlerFunc) http.HandlerFunc 
 		}
 
 		bodyHeader := r.Header.Get("Username")
-		fmt.Println(bodyHeader)
+		// fmt.Println(bodyHeader)
 
 		if strings.TrimSpace(bodyHeader) == "" {
 			http.Error(w, "Invalid Username", http.StatusBadRequest)
 			return
 		}
 
-		err := rateLimiter.RateLimiter(bodyHeader, rdb)
+		err := rateLimiter.RateLimiter(bodyHeader, rdb, mutexClinet)
 		if err != nil {
+			fmt.Println("-> ", err)
 			http.Error(w, fmt.Sprintf("%s", err), http.StatusBadRequest)
 			return
 		}
 
-		fmt.Println("Authorized")
+		// fmt.Println("Authorized")
 		next(w, r)
 	}
 }

@@ -9,16 +9,19 @@ import (
 	auth "rl/authentication"
 	rateLimiter "rl/ratelimiter"
 	proxy "rl/reverseproxy"
+	"sync"
 	"syscall"
 	"time"
 )
 
+var mutexClinet sync.Mutex
+
 func main() {
 	rdb := rateLimiter.CreateClient()
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", auth.IsAuthenticated(rdb, proxy.Start))
-	mux.HandleFunc("/auth", auth.IsAuthenticated(rdb, proxy.Start))
-	mux.HandleFunc("/todo", auth.IsAuthenticated(rdb, proxy.Start))
+	mux.HandleFunc("/", auth.IsAuthenticated(&mutexClinet, rdb, proxy.Start))
+	mux.HandleFunc("/auth", auth.IsAuthenticated(&mutexClinet, rdb, proxy.Start))
+	mux.HandleFunc("/todo", auth.IsAuthenticated(&mutexClinet, rdb, proxy.Start))
 
 	server := http.Server{
 		Addr:    ":8080",
