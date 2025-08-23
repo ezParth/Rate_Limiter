@@ -7,15 +7,18 @@ import (
 	"os"
 	"os/signal"
 	auth "rl/authentication"
-	proxy "rl/reverseProxy"
+	rateLimiter "rl/ratelimiter"
+	proxy "rl/reverseproxy"
 	"syscall"
 	"time"
 )
 
 func main() {
+	rdb := rateLimiter.CreateClient()
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", proxy.Start)
-	mux.HandleFunc("/auth", auth.IsAuthenticated(proxy.Start))
+	mux.HandleFunc("/", auth.IsAuthenticated(rdb, proxy.Start))
+	mux.HandleFunc("/auth", auth.IsAuthenticated(rdb, proxy.Start))
+	mux.HandleFunc("/todo", auth.IsAuthenticated(rdb, proxy.Start))
 
 	server := http.Server{
 		Addr:    ":8080",
